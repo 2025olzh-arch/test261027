@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>몸에 나쁜 음식 잡기! - 건강 식습관 두더지 게임</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Jua (Headings) & Noto Sans KR (Body) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            200: '#bbf7d0',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            800: '#166534',
+                            900: '#14532d'
+                        }
+                    },
+                    fontFamily: {
+                        jua: ['Jua', 'sans-serif'],
+                        sans: ['Noto Sans KR', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #f4fbf7;
+            color: #0f172a;
+        }
+
+        .font-jua {
+            font-family: 'Jua', sans-serif;
+        }
+
+        /* Hole Container */
+        .hole-wrapper {
+            position: relative;
+            overflow: hidden;
+            border-radius: 16px;
+            background-color: #1e293b;
+        }
+
+        .mole-container {
+            position: absolute;
+            bottom: -110%;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transition: bottom 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            cursor: pointer;
+        }
+
+        .mole-container.up {
+            bottom: 6%;
+        }
+
+        /* Whack Animations */
+        @keyframes whackShake {
+            0% { transform: scale(1) rotate(0deg); }
+            20% { transform: scale(0.85) rotate(-8deg); }
+            40% { transform: scale(1.05) rotate(8deg); }
+            100% { transform: scale(1) rotate(0deg); }
+        }
+
+        .whacked {
+            animation: whackShake 0.2s ease-in-out;
+        }
+
+        /* Screen Shake for Errors */
+        @keyframes screenShake {
+            0%, 100% { transform: translate(0, 0); }
+            25% { transform: translate(-6px, 4px); }
+            50% { transform: translate(6px, -4px); }
+            75% { transform: translate(-4px, 2px); }
+        }
+
+        .shake-screen {
+            animation: screenShake 0.3s ease-in-out;
+        }
+
+        /* Floating Score Text Animation */
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-50px); }
+        }
+
+        .float-text {
+            position: absolute;
+            pointer-events: none;
+            animation: floatUp 0.75s forwards ease-out;
+            z-index: 50;
+            font-family: 'Jua', sans-serif;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between items-center p-3 sm:p-6 max-w-4xl mx-auto">
+
+    <!-- HEADER -->
+    <header class="w-full bg-white border border-slate-200 rounded-2xl p-4 mb-4 flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl sm:text-3xl font-jua text-brand-800 leading-tight">몸에 나쁜 음식 잡기!</h1>
+            <p class="text-xs sm:text-sm text-slate-600 font-medium mt-0.5">채소는 지나치고, 몸에 나쁜 가공식품만 때려 잡으세요.</p>
+        </div>
+
+        <!-- Controls -->
+        <div class="flex items-center gap-2">
+            <button id="btnSoundToggle" onclick="toggleSound()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold text-slate-700 transition flex items-center gap-1.5">
+                <i id="soundIcon" class="fas fa-volume-up text-sm"></i>
+                <span class="hidden sm:inline">음향</span>
+            </button>
+            <button id="btnPause" onclick="togglePause()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold text-slate-700 transition flex items-center gap-1.5">
+                <i id="pauseIcon" class="fas fa-pause text-sm"></i>
+                <span class="hidden sm:inline">일시정지</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN GAME HUD -->
+    <div class="w-full bg-brand-800 text-white rounded-2xl p-4 mb-4">
+        <div class="grid grid-cols-4 gap-3 text-center font-jua items-center">
+            
+            <!-- Score -->
+            <div>
+                <div class="text-xs text-brand-200 font-sans font-normal">현재 점수</div>
+                <div id="txtScore" class="text-2xl sm:text-3xl text-white mt-1">0점</div>
+            </div>
+
+            <!-- Timer -->
+            <div>
+                <div class="text-xs text-brand-200 font-sans font-normal">남은 시간</div>
+                <div id="txtTimer" class="text-2xl sm:text-3xl text-white mt-1">60초</div>
+            </div>
+
+            <!-- Lives/Health -->
+            <div>
+                <div class="text-xs text-brand-200 font-sans font-normal">체력</div>
+                <div id="txtHearts" class="text-xl sm:text-2xl text-red-300 mt-1">❤️ ❤️ ❤️</div>
+            </div>
+
+            <!-- Combo & Fever Gauge -->
+            <div class="flex flex-col items-center">
+                <div class="text-xs text-brand-200 font-sans font-normal flex items-center gap-1">
+                    <span>콤보</span>
+                    <span id="txtCombo" class="text-white font-bold font-jua">0x</span>
+                </div>
+                <div class="w-full bg-brand-900 rounded-full h-3 mt-2 p-0.5 overflow-hidden">
+                    <div id="feverBar" class="bg-brand-200 h-full rounded-full transition-all duration-200" style="width: 0%;"></div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- PLAYGROUND (3x3 GRID) -->
+    <main id="gameArea" class="relative w-full bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 my-auto">
+        
+        <!-- 3x3 Mole Holes Grid -->
+        <div class="grid grid-cols-3 gap-3 sm:gap-5 w-full aspect-square max-h-[480px] mx-auto">
+            <div class="hole-wrapper relative w-full h-full flex justify-center items-end" id="hole-0">
+                <div class="mole-container" id="mole-0" onclick="whackMole(0)">
+                    <div class="food-badge bg-white rounded-lg px-2 py-0.5 text-xs font-bold mb-1 shadow-sm hidden" id="badge-0">식품</div>
+                    <div class="mole-graphic text-5xl sm:text-6xl mb-2 relative" id="graphic-0">🐹</div>
+                </div>
+            </div>
+
+            <div class="hole-wrapper relative w-full h-full flex justify-center items-end" id="hole-1">
+                <div class="mole-container" id="mole-1" onclick="whackMole(1)">
+                    <div class="food-badge bg-white rounded-lg px-2 py-0.5 text-xs font-bold mb-1 shadow-sm hidden" id="badge-1">식품</div>
+                    <div class="mole-graphic text-5xl sm:text-6xl mb-2 relative" id="graphic-1">🐹</div>
+                </div>
+            </div>
+
+            <div class="hole-wrapper relative w-full h-full flex justify-center items-end" id="hole-2">
+                <div class="mole-container" id="mole-2" onclick="whackMole(2)">
+                    <div class="food-badge bg-white rounded-lg px-2 py-0.5 text-xs font-bold mb-1 shadow-sm hidden" id="badge-2">식품</div>
+                    <div class="mole-graphic text-5xl sm:text-6xl mb-2 relative" id="graphic-2">🐹</div>
+                </div>
+            </div>
+
+            <div class="hole-wrapper relative w-full h-full flex justify-center items-end" id="hole-3">
+                <div class="mole-container" id="mole-3" onclick="whackMole(3)">
+                    <div class="food-badge bg-white rounded-lg px-2 py-0.5 text-xs font-bold mb-1 shadow-sm hidden" id="badge-3">식품</div>
+                    <div class="mole-graphic text-5xl sm:text-6xl mb-2 relative" id="graphic-3">🐹</div>
+                </div>
+            </div>
+
+            <div class="hole-wrapper relative w-full h-full flex justify-center items-end" id="hole-4">
+                <div class="mole-container" id="mole-4" onclick="whackMole(4)">
+                    <div class="food-badge bg-white rounded-lg px-2 py-0.5 text-xs font-bold mb-1 shadow-sm hidden" id="badge-4">식품</div>
+                    <div class="mole-graphic text-5xl sm:text-6xl mb-2 relative" id="graphic-4">🐹</div>
+                </div>
+            </div>
+
+            <div class="hole-wrapper relative w-full h-full flex justify-center items-end" id="hole-5">
+                <div class="mole-container" id="mole-5" onclick="whackMole(5)">
+                    <div class="food-badge bg-white rounded-lg px-2 py-0.5 text-xs font-bold mb-1 shadow-sm hidden" id="badge-5">식품</div>
+                    <div class="mole-graphic text-5xl sm:text-6xl mb-2 relative" id="graphic-5">🐹</div>
+                </div>
+            </div>
+
+            <div class="hole-wrapper relative w-full h-full flex justify-center items-end" id="hole-6">
+                <div class="mole-container" id="mole-6" onclick="whackMole(6)">
+                    <div class="food-badge bg-white rounded-lg px-2 py-0.5 text-xs font-bold mb-1 shadow-sm hidden" id="badge-6">식품</div>
+                    <div class="mole-graphic text-5xl sm:text-6xl mb-2 relative" id="graphic-6">🐹</div>
+                </div>
+            </div>
+
+            <div class="hole-wrapper relative w-full h-full flex justify-center items-end" id="hole-7">
+                <div class="mole-container" id="mole-7" onclick="whackMole(7)">
+                    <div class="food-badge bg-white rounded-lg px-2 py-0.5 text-xs font-bold mb-1 shadow-sm hidden" id="badge-7">식품</div>
+                    <div class="mole-graphic text-5xl sm:text-6xl mb-2 relative" id="graphic-7">🐹</div>
+                </div>
+            </div>
+
+            <div class="hole-wrapper relative w-full h-full flex justify-center items-end" id="hole-8">
+                <div class="mole-container" id="mole-8" onclick="whackMole(8)">
+                    <div class="food-badge bg-white rounded-lg px-2 py-0.5 text-xs font-bold mb-1 shadow-sm hidden" id="badge-8">식품</div>
+                    <div class="mole-graphic text-5xl sm:text-6xl mb-2 relative" id="graphic-8">🐹</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fever Banner Overlay -->
+        <div id="feverBanner" class="hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-brand-800 text-white font-jua text-2xl sm:text-4xl px-6 py-3 rounded-xl shadow-md z-40 pointer-events-none text-center">
+            🔥 FEVER TIME! (점수 2배)
+        </div>
+    </main>
+
+    <!-- START MODAL / RULES SCREEN -->
+    <div id="startModal" class="fixed inset-0 bg-slate-900/60 z-50 flex justify-center items-center p-4">
+        <div class="bg-white border border-slate-200 rounded-2xl p-6 max-w-lg w-full text-center shadow-md">
+            <h2 class="text-3xl font-jua text-brand-800 mb-1">영양 만점 두더지 잡기!</h2>
+            <p class="text-slate-600 text-sm mb-5 font-medium">건강에 나쁜 식품을 빠르게 잡는 영양 교육 게임</p>
+
+            <!-- Rules Table -->
+            <div class="divide-y divide-slate-100 text-left mb-6">
+                <div class="py-3 flex items-center gap-3">
+                    <span class="text-2xl">🍟</span>
+                    <div>
+                        <div class="font-jua text-base text-slate-900">나쁜 식품 (가공식품, 고당분)</div>
+                        <div class="text-xs text-slate-600">클릭/터치하여 잡기 <span class="text-brand-700 font-bold">(+20점)</span></div>
+                    </div>
+                </div>
+                <div class="py-3 flex items-center gap-3">
+                    <span class="text-2xl">🥦</span>
+                    <div>
+                        <div class="font-jua text-base text-slate-900">건강한 식품 (채소, 과일, 통곡물)</div>
+                        <div class="text-xs text-slate-600">클릭하지 않고 그냥 두기 <span class="text-brand-700 font-bold">(+5점)</span></div>
+                    </div>
+                </div>
+                <div class="py-2 text-xs text-red-600 font-medium">
+                    <i class="fas fa-exclamation-triangle mr-1"></i>
+                    채소를 때리거나(-10점), 나쁜 음식을 놓치면(-5점) 체력이 차감됩니다.
+                </div>
+            </div>
+
+            <!-- Difficulty Settings -->
+            <div class="mb-6 text-left">
+                <label class="block text-xs font-bold text-slate-700 mb-2">난이도 선택</label>
+                <div class="grid grid-cols-3 gap-2">
+                    <button onclick="setDifficulty('easy')" id="btnDiffEasy" class="diff-btn py-2 bg-slate-100 text-slate-700 rounded-xl font-jua text-sm">쉬움</button>
+                    <button onclick="setDifficulty('normal')" id="btnDiffNormal" class="diff-btn py-2 bg-brand-700 text-white rounded-xl font-jua text-sm">보통</button>
+                    <button onclick="setDifficulty('hard')" id="btnDiffHard" class="diff-btn py-2 bg-slate-100 text-slate-700 rounded-xl font-jua text-sm">어려움</button>
+                </div>
+            </div>
+
+            <button onclick="startGame()" class="w-full py-3.5 bg-brand-700 hover:bg-brand-800 rounded-xl text-white font-jua text-xl transition active:scale-95">
+                게임 시작하기
+            </button>
+        </div>
+    </div>
+
+    <!-- PAUSE MODAL -->
+    <div id="pauseModal" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex justify-center items-center p-4">
+        <div class="bg-white border border-slate-200 rounded-2xl p-6 max-w-xs w-full text-center shadow-md">
+            <h3 class="text-2xl font-jua text-slate-900 mb-4">일시 정지 중</h3>
+            <div class="space-y-2">
+                <button onclick="togglePause()" class="w-full py-2.5 bg-brand-700 hover:bg-brand-800 rounded-xl font-jua text-white text-base">
+                    계속하기
+                </button>
+                <button onclick="resetToStart()" class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl font-jua text-slate-700 text-base">
+                    처음 화면으로
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- GAME OVER & REPORT MODAL -->
+    <div id="reportModal" class="hidden fixed inset-0 bg-slate-900/70 z-50 flex justify-center items-center p-4 overflow-y-auto">
+        <div class="bg-white border border-slate-200 rounded-2xl p-6 max-w-lg w-full text-center shadow-md my-auto">
+            <h2 class="text-2xl sm:text-3xl font-jua text-brand-800 mb-1">오늘의 영양 리포트</h2>
+            <p id="reportSubtext" class="text-xs text-slate-500 mb-5">식습관 판단 결과서</p>
+
+            <!-- Score Summary Row -->
+            <div class="grid grid-cols-3 gap-2 text-center py-3 mb-4 border-y border-slate-100">
+                <div>
+                    <div class="text-xs text-slate-500">최종 점수</div>
+                    <div id="rptScore" class="text-xl sm:text-2xl font-jua text-brand-700 mt-0.5">0점</div>
+                </div>
+                <div>
+                    <div class="text-xs text-slate-500">정확도</div>
+                    <div id="rptAccuracy" class="text-xl sm:text-2xl font-jua text-slate-800 mt-0.5">0%</div>
+                </div>
+                <div>
+                    <div class="text-xs text-slate-500">최대 콤보</div>
+                    <div id="rptMaxCombo" class="text-xl sm:text-2xl font-jua text-slate-800 mt-0.5">0x</div>
+                </div>
+            </div>
+
+            <!-- Detailed Breakdown List -->
+            <div class="divide-y divide-slate-100 text-left text-xs sm:text-sm mb-5">
+                <div class="py-2 flex justify-between items-center">
+                    <span class="text-slate-700"><i class="fas fa-check-circle text-brand-600 mr-2"></i>퇴치한 나쁜 음식</span>
+                    <span id="rptBadCaught" class="font-bold text-brand-700">0개 (+0점)</span>
+                </div>
+                <div class="py-2 flex justify-between items-center">
+                    <span class="text-slate-700"><i class="fas fa-leaf text-brand-600 mr-2"></i>잘 지켜낸 좋은 음식</span>
+                    <span id="rptGoodSaved" class="font-bold text-brand-700">0개 (+0점)</span>
+                </div>
+                <div class="py-2 flex justify-between items-center">
+                    <span class="text-slate-700"><i class="fas fa-times-circle text-red-500 mr-2"></i>놓친 나쁜 음식</span>
+                    <span id="rptBadMissed" class="font-bold text-red-600">0개 (-0점)</span>
+                </div>
+                <div class="py-2 flex justify-between items-center">
+                    <span class="text-slate-700"><i class="fas fa-exclamation-triangle text-amber-500 mr-2"></i>실수로 때린 좋은 음식</span>
+                    <span id="rptGoodWhacked" class="font-bold text-amber-600">0개 (-0점)</span>
+                </div>
+            </div>
+
+            <!-- Teacher Feedback Box -->
+            <div class="p-4 bg-slate-50 rounded-xl text-left mb-6">
+                <div class="font-jua text-sm text-slate-900 mb-1">
+                    <i class="fas fa-graduation-cap text-brand-700 mr-1"></i> 영양 선생님의 피드백:
+                </div>
+                <p id="rptTeacherAdvice" class="text-xs sm:text-sm text-slate-600 leading-relaxed font-medium">
+                    "패스트푸드를 아주 잘 잡았어요! 다음 수업에서는 채소의 좋은 영양소에 대해 함께 알아보아요!"
+                </p>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="startGame()" class="py-3 bg-brand-700 hover:bg-brand-800 rounded-xl text-white font-jua text-lg transition active:scale-95">
+                    다시 하기
+                </button>
+                <button onclick="shareScore()" class="py-3 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-800 font-jua text-lg transition active:scale-95">
+                    점수 복사
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-medium opacity-0 transition-opacity duration-300 pointer-events-none z-50">
+        메시지 내용
+    </div>
+
+    <script>
+        /* ==========================================================================
+           1. FOOD DATABASE & GAME CONFIGURATION
+           ========================================================================== */
+        const FOOD_DATABASE = {
+            GOOD: [
+                { name: '브로콜리', emoji: '🥦' },
+                { name: '당근', emoji: '🥕' },
+                { name: '사과', emoji: '🍎' },
+                { name: '우유', emoji: '🥛' },
+                { name: '생선', emoji: '🐟' },
+                { name: '현미밥', emoji: '🍚' },
+                { name: '토마토', emoji: '🍅' },
+                { name: '바나나', emoji: '🍌' }
+            ],
+            BAD: [
+                { name: '탄산음료', emoji: '🥤' },
+                { name: '감자튀김', emoji: '🍟' },
+                { name: '라면', emoji: '🍜' },
+                { name: '사탕/젤리', emoji: '🍬' },
+                { name: '햄버거', emoji: '🍔' },
+                { name: '도넛', emoji: '🍩' },
+                { name: '피자', emoji: '🍕' },
+                { name: '핫도그', emoji: '🌭' }
+            ]
+        };
+
+        const MOLE_EMOJIS = ['🐹', '🐭', '🦔', '🐿️'];
+
+        const DIFFICULTY_SETTINGS = {
+            easy: { popTime: 1800, spawnInterval: 1200, multiSpawnProb: 0.1 },
+            normal: { popTime: 1300, spawnInterval: 950, multiSpawnProb: 0.25 },
+            hard: { popTime: 900, spawnInterval: 700, multiSpawnProb: 0.45 }
+        };
+
+        let currentDifficulty = 'normal';
+        let isPlaying = false;
+        let isPaused = false;
+        let score = 0;
+        let lives = 3;
+        let timeLeft = 60;
+        let comboCount = 0;
+        let maxCombo = 0;
+        let feverActive = false;
+        let feverTimer = null;
+
+        let gameTimerInterval = null;
+        let moleSpawnTimeout = null;
+
+        let holeStates = Array(9).fill(null).map(() => ({
+            active: false,
+            type: null,
+            food: null,
+            moleEmoji: '🐹',
+            timeout: null
+        }));
+
+        let stats = { badCaught: 0, goodSaved: 0, badMissed: 0, goodWhacked: 0 };
+
+        /* ==========================================================================
+           2. WEB AUDIO API SYNTHESIZER
+           ========================================================================== */
+        let audioCtx = null;
+        let soundEnabled = true;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const soundIcon = document.getElementById('soundIcon');
+            if (soundEnabled) {
+                soundIcon.className = 'fas fa-volume-up text-sm';
+                showToast('소리가 켜졌습니다.');
+            } else {
+                soundIcon.className = 'fas fa-volume-mute text-sm text-slate-400';
+                showToast('소리가 꺼졌습니다.');
+            }
+        }
+
+        function playSound(type) {
+            if (!soundEnabled) return;
+            initAudio();
+            if (!audioCtx) return;
+
+            const now = audioCtx.currentTime;
+
+            try {
+                if (type === 'hitBad') {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(160, now);
+                    osc.frequency.exponentialRampToValueAtTime(40, now + 0.15);
+                    gain.gain.setValueAtTime(0.7, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.15);
+                } else if (type === 'hitGood') {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(200, now);
+                    osc.frequency.setValueAtTime(100, now + 0.1);
+                    gain.gain.setValueAtTime(0.4, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.25);
+                } else if (type === 'passGood') {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(523.25, now);
+                    osc.frequency.setValueAtTime(659.25, now + 0.08);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.18);
+                } else if (type === 'fever') {
+                    [523.25, 659.25, 783.99].forEach((freq, idx) => {
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(freq, now + idx * 0.06);
+                        gain.gain.setValueAtTime(0.25, now + idx * 0.06);
+                        gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.06 + 0.2);
+                        osc.connect(gain);
+                        gain.connect(audioCtx.destination);
+                        osc.start(now + idx * 0.06);
+                        osc.stop(now + idx * 0.06 + 0.2);
+                    });
+                } else if (type === 'gameOver') {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(350, now);
+                    osc.frequency.exponentialRampToValueAtTime(90, now + 0.5);
+                    gain.gain.setValueAtTime(0.4, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.5);
+                }
+            } catch(e) {}
+        }
+
+        /* ==========================================================================
+           3. GAME LOGIC & LIFECYCLE MANAGEMENT
+           ========================================================================== */
+        function setDifficulty(diff) {
+            currentDifficulty = diff;
+            document.querySelectorAll('.diff-btn').forEach(btn => {
+                btn.className = 'diff-btn py-2 bg-slate-100 text-slate-700 rounded-xl font-jua text-sm';
+            });
+
+            if (diff === 'easy') {
+                document.getElementById('btnDiffEasy').className = 'diff-btn py-2 bg-brand-700 text-white rounded-xl font-jua text-sm';
+            } else if (diff === 'normal') {
+                document.getElementById('btnDiffNormal').className = 'diff-btn py-2 bg-brand-700 text-white rounded-xl font-jua text-sm';
+            } else if (diff === 'hard') {
+                document.getElementById('btnDiffHard').className = 'diff-btn py-2 bg-brand-700 text-white rounded-xl font-jua text-sm';
+            }
+        }
+
+        function startGame() {
+            initAudio();
+            
+            document.getElementById('startModal').classList.add('hidden');
+            document.getElementById('reportModal').classList.add('hidden');
+            document.getElementById('pauseModal').classList.add('hidden');
+
+            score = 0;
+            lives = 3;
+            timeLeft = 60;
+            comboCount = 0;
+            maxCombo = 0;
+            feverActive = false;
+            isPlaying = true;
+            isPaused = false;
+
+            stats = { badCaught: 0, goodSaved: 0, badMissed: 0, goodWhacked: 0 };
+
+            clearAllMoles();
+            updateHUD();
+
+            clearInterval(gameTimerInterval);
+            gameTimerInterval = setInterval(gameTick, 1000);
+
+            scheduleNextSpawn();
+            showToast('게임이 시작되었습니다!');
+        }
+
+        function gameTick() {
+            if (!isPlaying || isPaused) return;
+
+            timeLeft--;
+            updateHUD();
+
+            if (timeLeft <= 0 || lives <= 0) {
+                endGame();
+            }
+        }
+
+        function togglePause() {
+            if (!isPlaying) return;
+
+            isPaused = !isPaused;
+            const pauseModal = document.getElementById('pauseModal');
+            const pauseIcon = document.getElementById('pauseIcon');
+
+            if (isPaused) {
+                pauseModal.classList.remove('hidden');
+                pauseIcon.className = 'fas fa-play text-sm';
+            } else {
+                pauseModal.classList.add('hidden');
+                pauseIcon.className = 'fas fa-pause text-sm';
+                scheduleNextSpawn();
+            }
+        }
+
+        function resetToStart() {
+            isPlaying = false;
+            isPaused = false;
+            clearInterval(gameTimerInterval);
+            clearTimeout(moleSpawnTimeout);
+            clearAllMoles();
+
+            document.getElementById('pauseModal').classList.add('hidden');
+            document.getElementById('reportModal').classList.add('hidden');
+            document.getElementById('startModal').classList.remove('hidden');
+        }
+
+        /* ==========================================================================
+           4. MOLE SPAWNING & ANIMATIONS
+           ========================================================================== */
+        function scheduleNextSpawn() {
+            if (!isPlaying || isPaused) return;
+
+            clearTimeout(moleSpawnTimeout);
+
+            const settings = DIFFICULTY_SETTINGS[currentDifficulty];
+            const speedMultiplier = Math.max(0.65, timeLeft / 60);
+            const nextDelay = settings.spawnInterval * speedMultiplier;
+
+            moleSpawnTimeout = setTimeout(() => {
+                spawnMole();
+                if (Math.random() < settings.multiSpawnProb) {
+                    setTimeout(spawnMole, 200);
+                }
+                scheduleNextSpawn();
+            }, nextDelay);
+        }
+
+        function spawnMole() {
+            if (!isPlaying || isPaused) return;
+
+            const emptyIndices = holeStates.map((state, idx) => state.active ? null : idx).filter(v => v !== null);
+            if (emptyIndices.length === 0) return;
+
+            const holeIdx = emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
+
+            const isBad = Math.random() < 0.55;
+            const type = isBad ? 'BAD' : 'GOOD';
+            const foodList = isBad ? FOOD_DATABASE.BAD : FOOD_DATABASE.GOOD;
+            const food = foodList[Math.floor(Math.random() * foodList.length)];
+            const moleEmoji = MOLE_EMOJIS[Math.floor(Math.random() * MOLE_EMOJIS.length)];
+
+            const state = holeStates[holeIdx];
+            state.active = true;
+            state.type = type;
+            state.food = food;
+            state.moleEmoji = moleEmoji;
+
+            const moleElem = document.getElementById(`mole-${holeIdx}`);
+            const badgeElem = document.getElementById(`badge-${holeIdx}`);
+            const graphicElem = document.getElementById(`graphic-${holeIdx}`);
+
+            badgeElem.innerText = `${food.emoji} ${food.name}`;
+            badgeElem.className = `food-badge bg-white text-slate-800 rounded-md px-2 py-0.5 text-xs font-jua mb-1 ${
+                type === 'BAD' ? 'text-red-600' : 'text-brand-700'
+            }`;
+            badgeElem.classList.remove('hidden');
+
+            graphicElem.innerHTML = `<span class="text-4xl sm:text-5xl">${moleEmoji}</span>`;
+
+            moleElem.classList.add('up');
+
+            const settings = DIFFICULTY_SETTINGS[currentDifficulty];
+            const popDuration = settings.popTime * Math.max(0.7, timeLeft / 60);
+
+            clearTimeout(state.timeout);
+            state.timeout = setTimeout(() => {
+                onMoleTimeout(holeIdx);
+            }, popDuration);
+        }
+
+        function onMoleTimeout(holeIdx) {
+            const state = holeStates[holeIdx];
+            if (!state.active) return;
+
+            if (state.type === 'GOOD') {
+                const addScore = feverActive ? 10 : 5;
+                score += addScore;
+                stats.goodSaved++;
+                incrementCombo();
+                playSound('passGood');
+                createFloatText(holeIdx, `+${addScore} 통과`, 'text-brand-700');
+            } else if (state.type === 'BAD') {
+                score = Math.max(0, score - 5);
+                lives--;
+                stats.badMissed++;
+                resetCombo();
+                playSound('hitGood');
+                createFloatText(holeIdx, `-5 놓침`, 'text-red-600');
+                triggerScreenShake();
+                if (lives <= 0) endGame();
+            }
+
+            retractMole(holeIdx);
+            updateHUD();
+        }
+
+        function retractMole(holeIdx) {
+            const state = holeStates[holeIdx];
+            state.active = false;
+            clearTimeout(state.timeout);
+
+            const moleElem = document.getElementById(`mole-${holeIdx}`);
+            moleElem.classList.remove('up', 'whacked');
+        }
+
+        function clearAllMoles() {
+            holeStates.forEach((state, idx) => {
+                clearTimeout(state.timeout);
+                state.active = false;
+                const moleElem = document.getElementById(`mole-${idx}`);
+                if (moleElem) moleElem.classList.remove('up', 'whacked');
+            });
+        }
+
+        /* ==========================================================================
+           5. USER INTERACTION & WHACKING
+           ========================================================================== */
+        function whackMole(holeIdx) {
+            if (!isPlaying || isPaused) return;
+
+            const state = holeStates[holeIdx];
+            if (!state.active) return;
+
+            const moleElem = document.getElementById(`mole-${holeIdx}`);
+            moleElem.classList.add('whacked');
+
+            if (state.type === 'BAD') {
+                const points = feverActive ? 40 : 20;
+                score += points;
+                stats.badCaught++;
+                incrementCombo();
+                playSound('hitBad');
+                createFloatText(holeIdx, `+${points}`, 'text-brand-700');
+            } else if (state.type === 'GOOD') {
+                score = Math.max(0, score - 10);
+                lives--;
+                stats.goodWhacked++;
+                resetCombo();
+                playSound('hitGood');
+                createFloatText(holeIdx, `-10`, 'text-red-600');
+                triggerScreenShake();
+                if (lives <= 0) endGame();
+            }
+
+            retractMole(holeIdx);
+            updateHUD();
+        }
+
+        /* ==========================================================================
+           6. COMBO & FEVER SYSTEM
+           ========================================================================== */
+        function incrementCombo() {
+            comboCount++;
+            if (comboCount > maxCombo) maxCombo = comboCount;
+
+            const feverBar = document.getElementById('feverBar');
+            const percent = Math.min(100, (comboCount % 5) * 20);
+            feverBar.style.width = `${percent}%`;
+
+            if (comboCount > 0 && comboCount % 5 === 0 && !feverActive) {
+                activateFever();
+            }
+        }
+
+        function resetCombo() {
+            comboCount = 0;
+            const feverBar = document.getElementById('feverBar');
+            feverBar.style.width = '0%';
+        }
+
+        function activateFever() {
+            feverActive = true;
+            playSound('fever');
+
+            const banner = document.getElementById('feverBanner');
+            banner.classList.remove('hidden');
+
+            try {
+                confetti({ particleCount: 40, spread: 50, origin: { y: 0.6 } });
+            } catch(e) {}
+
+            clearTimeout(feverTimer);
+            feverTimer = setTimeout(() => {
+                feverActive = false;
+                banner.classList.add('hidden');
+                resetCombo();
+            }, 6000);
+        }
+
+        /* ==========================================================================
+           7. HUD & UI RENDERING HELPERS
+           ========================================================================== */
+        function updateHUD() {
+            document.getElementById('txtScore').innerText = `${score}점`;
+            document.getElementById('txtTimer').innerText = `${timeLeft}초`;
+            document.getElementById('txtCombo').innerText = `${comboCount}x`;
+
+            let heartsStr = '';
+            for (let i = 0; i < 3; i++) {
+                heartsStr += i < lives ? '❤️ ' : '🖤 ';
+            }
+            document.getElementById('txtHearts').innerText = heartsStr.trim();
+        }
+
+        function createFloatText(holeIdx, text, textColorClass) {
+            const holeElem = document.getElementById(`hole-${holeIdx}`);
+            if (!holeElem) return;
+
+            const rect = holeElem.getBoundingClientRect();
+            const floatElem = document.createElement('div');
+            floatElem.className = `float-text text-xl font-jua ${textColorClass}`;
+            floatElem.innerText = text;
+
+            floatElem.style.left = `${rect.left + rect.width / 2 - 20}px`;
+            floatElem.style.top = `${rect.top + 10}px`;
+
+            document.body.appendChild(floatElem);
+
+            setTimeout(() => {
+                floatElem.remove();
+            }, 750);
+        }
+
+        function triggerScreenShake() {
+            const body = document.body;
+            body.classList.add('shake-screen');
+            setTimeout(() => body.classList.remove('shake-screen'), 300);
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.remove('opacity-0');
+            setTimeout(() => toast.classList.add('opacity-0'), 2000);
+        }
+
+        /* ==========================================================================
+           8. GAME OVER & EDUCATIONAL REPORT
+           ========================================================================== */
+        function endGame() {
+            isPlaying = false;
+            clearInterval(gameTimerInterval);
+            clearTimeout(moleSpawnTimeout);
+            clearAllMoles();
+
+            playSound('gameOver');
+
+            const totalActions = stats.badCaught + stats.goodSaved + stats.badMissed + stats.goodWhacked;
+            const correctActions = stats.badCaught + stats.goodSaved;
+            const accuracy = totalActions > 0 ? Math.round((correctActions / totalActions) * 100) : 0;
+
+            document.getElementById('rptScore').innerText = `${score}점`;
+            document.getElementById('rptAccuracy').innerText = `${accuracy}%`;
+            document.getElementById('rptMaxCombo').innerText = `${maxCombo}x`;
+
+            document.getElementById('rptBadCaught').innerText = `${stats.badCaught}개 (+${stats.badCaught * 20}점)`;
+            document.getElementById('rptGoodSaved').innerText = `${stats.goodSaved}개 (+${stats.goodSaved * 5}점)`;
+            document.getElementById('rptBadMissed').innerText = `${stats.badMissed}개 (-${stats.badMissed * 5}점)`;
+            document.getElementById('rptGoodWhacked').innerText = `${stats.goodWhacked}개 (-${stats.goodWhacked * 10}점)`;
+
+            const adviceElem = document.getElementById('rptTeacherAdvice');
+
+            if (score >= 350 && accuracy >= 80) {
+                adviceElem.innerText = "최고의 영양 파수꾼입니다! 건강한 식품을 잘 알아보았고 가공식품을 단호하게 단속했어요.";
+                try { confetti({ particleCount: 80, spread: 70, origin: { y: 0.5 } }); } catch(e){}
+            } else if (score >= 200) {
+                adviceElem.innerText = "훌륭해요! 나쁜 음식을 빠르게 잡아내셨네요. 약간 놓친 채소나 과일이 있다면 더 신중히 확인해 보세요!";
+            } else {
+                adviceElem.innerText = "수고했어요! 가공식품과 채소를 한눈에 구분하기가 조금 서툴렀나요? 건강한 식품의 종류를 더 연습해 봅시다!";
+            }
+
+            document.getElementById('reportModal').classList.remove('hidden');
+        }
+
+        function shareScore() {
+            const text = `[건강 식습관 두더지 게임]\n최종 점수: ${score}점\n정확도: ${document.getElementById('rptAccuracy').innerText}\n퇴치한 나쁜 음식: ${stats.badCaught}개`;
+            
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => {
+                    showToast('점수 리포트가 복사되었습니다.');
+                }).catch(() => {
+                    fallbackCopy(text);
+                });
+            } else {
+                fallbackCopy(text);
+            }
+        }
+
+        function fallbackCopy(text) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            showToast('점수 리포트가 복사되었습니다.');
+        }
+
+        window.onload = function() {
+            setDifficulty('normal');
+            updateHUD();
+        };
+    </script>
+</body>
+</html>
